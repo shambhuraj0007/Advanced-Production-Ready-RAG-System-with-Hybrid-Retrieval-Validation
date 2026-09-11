@@ -18,6 +18,3 @@ dependencies = [
     "tavily-python>=0.3.0",
     "duckduckgo-search>=3.9.0",
 ]
-
-[tool.vercel]
-entrypoint = "api:app"

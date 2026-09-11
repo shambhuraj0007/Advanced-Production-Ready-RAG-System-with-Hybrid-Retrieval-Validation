@@ -36,20 +36,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure static and documents directory exist (using /tmp on Vercel serverless)
-IS_VERCEL = os.getenv("VERCEL") == "1"
+# Ensure static and documents directory exist
+DOCUMENTS_DIR = Path(os.getenv("DOCUMENTS_DIR", str(Path(__file__).resolve().parent / "documents")))
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-DOCUMENTS_DIR = Path("/tmp/documents") if IS_VERCEL else Path(__file__).resolve().parent / "documents"
-STATIC_DIR.mkdir(exist_ok=True)
-DOCUMENTS_DIR.mkdir(exist_ok=True)
-
-if IS_VERCEL:
-    repo_docs = Path(__file__).resolve().parent / "documents"
-    if repo_docs.exists():
-        for doc in repo_docs.glob("*.*"):
-            dest_doc = DOCUMENTS_DIR / doc.name
-            if not dest_doc.exists():
-                shutil.copy2(doc, dest_doc)
+DOCUMENTS_DIR.mkdir(exist_ok=True, parents=True)
+STATIC_DIR.mkdir(exist_ok=True, parents=True)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -63,11 +54,7 @@ def get_rag() -> SimpleRAG:
     if rag_system is None:
         try:
             print(" Initializing SimpleRAG backend...")
-            kwargs = {}
-            if IS_VERCEL:
-                # Disable heavy local cross-encoder downloads on Vercel to avoid cold-start 10s timeouts
-                kwargs["use_reranking"] = False
-            rag_system = SimpleRAG(**kwargs)
+            rag_system = SimpleRAG()
             # Auto-load existing documents if ChromaDB doesn't have them
             existing_docs = list(DOCUMENTS_DIR.glob("*.*"))
             valid_files = [str(f) for f in existing_docs if f.suffix.lower() in [".pdf", ".txt", ".md"]]
@@ -80,7 +67,7 @@ def get_rag() -> SimpleRAG:
             print(f" SimpleRAG initialization error: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"RAG System Initialization Error: {str(e)}. Please check that GROQ_API_KEY and GEMINI_API_KEY are configured in your Vercel Project Settings > Environment Variables."
+                detail=f"RAG System Initialization Error: {str(e)}. Please check that GROQ_API_KEY and GEMINI_API_KEY are configured in your environment variables."
             )
     return rag_system
 

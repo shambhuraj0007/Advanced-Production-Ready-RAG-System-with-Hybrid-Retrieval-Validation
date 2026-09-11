@@ -1,11 +1,13 @@
 # 🚀 Advanced Production-Ready RAG System
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Cloud Run](https://img.shields.io/badge/Deploy-GCP%20Cloud%20Run-4285F4.svg?logo=google-cloud&logoColor=white)](https://cloud.google.com/run)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![LangChain](https://img.shields.io/badge/LangChain-LCEL-green.svg)](https://python.langchain.com/)
 [![VectorDB](https://img.shields.io/badge/VectorDB-ChromaDB-purple.svg)](https://www.trychroma.com/)
 [![Reranker](https://img.shields.io/badge/Reranker-Cross--Encoder-orange.svg)](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-6-v2)
 [![Evaluation](https://img.shields.io/badge/Evaluation-RAGAS-red.svg)](https://github.com/explodinggradients/ragas)
-[![UI](https://img.shields.io/badge/UI-FastAPI%20%2B%20TailwindCSS-06B6D4.svg)](http://127.0.0.1:8000)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A high-performance, modular **Retrieval-Augmented Generation (RAG)** pipeline engineered with **LangChain (LCEL)**, combining **Hybrid Search (ChromaDB + BM25)**, **Cross-Encoder Re-ranking**, **Dynamic Query Routing**, **Hallucination Verification**, **Router-Aware External Tools**, and **Automated Quantitative Evaluation using RAGAS**.
@@ -267,6 +269,47 @@ All settings can be customized via `.env` or passed directly to `SimpleRAG()`:
 | `use_query_rewriting`| `RAG_USE_QUERY_REWRITING`| `false` | Contextual query expansion |
 | `use_answer_validation`| `RAG_USE_ANSWER_VALIDATION`| `false` | Hallucination verification |
 | `use_tools` | `RAG_USE_TOOLS` | `true` | Enable web search & calculator |
+
+---
+
+## 🐳 Containerization & Cloud Deployment
+
+This service is fully containerized and production-ready for **Google Cloud Run**, **AWS App Runner**, or any Docker-compatible infrastructure.
+
+### Option A: Run Locally via Docker Compose
+```bash
+# Build and run the microservice
+docker compose up --build
+
+# Access the Web UI and API Docs
+# UI:   http://localhost:8080
+# Docs: http://localhost:8080/docs
+```
+
+### Option B: Deploy to Google Cloud Run (Recommended)
+1. **Build & Deploy via Google Cloud CLI:**
+```bash
+# Authenticate with GCP
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+
+# Deploy directly from source to Cloud Run
+gcloud run deploy rag-service \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars GROQ_API_KEY="your_groq_key",GEMINI_API_KEY="your_gemini_key",TAVILY_API_KEY="your_tavily_key"
+```
+
+2. **Or Deploy via GCP Cloud Console (No CLI needed):**
+- Go to [Google Cloud Run Console](https://console.cloud.google.com/run).
+- Click **Create Service** $\to$ **Continuously deploy from a repository** (Connect your GitHub repo).
+- Select branch `main` and choose **Dockerfile**.
+- Under **Variables & Secrets**, add:
+  - `GROQ_API_KEY`
+  - `GEMINI_API_KEY`
+  - `TAVILY_API_KEY`
+- Click **Create**. Google Cloud automatically builds the container and provisions a global HTTPS endpoint!
 
 ---
 

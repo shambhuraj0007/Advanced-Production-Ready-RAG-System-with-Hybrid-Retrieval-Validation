@@ -101,8 +101,7 @@ class SimpleRAG:
             return default
 
         self.provider = (provider or os.getenv("RAG_PROVIDER", "groq")).lower()
-        default_persist = "/tmp/chroma_db" if os.getenv("VERCEL") == "1" else "./chroma_db"
-        self.persist_directory = persist_directory or os.getenv("RAG_PERSIST_DIRECTORY", default_persist)
+        self.persist_directory = persist_directory or os.getenv("RAG_PERSIST_DIRECTORY", "./chroma_db")
 
         # Set default models based on provider if not specified
         env_embedding = os.getenv("RAG_EMBEDDING_MODEL")
