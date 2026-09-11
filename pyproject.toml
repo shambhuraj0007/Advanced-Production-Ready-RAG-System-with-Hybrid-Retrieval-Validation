@@ -2,6 +2,23 @@
 name = "advanced-rag-system"
 version = "1.0.0"
 description = "Advanced Production-Ready RAG System with Hybrid Retrieval & Validation"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "python-multipart>=0.0.9",
+    "python-dotenv>=1.0.0",
+    "langchain>=1.2.0",
+    "langchain-community>=0.4.0",
+    "langchain-text-splitters>=1.0.0",
+    "langchain-google-genai>=2.0.0",
+    "langchain-groq>=0.2.0",
+    "chromadb==1.4.0",
+    "pypdf>=5.0.0",
+    "rank-bm25>=0.2.2",
+    "tavily-python>=0.3.0",
+    "duckduckgo-search>=3.9.0",
+    "sentence-transformers>=2.2.0",
+]
 
 [tool.vercel]
 entrypoint = "api:app"

@@ -25,7 +25,11 @@ from langchain_core.documents import Document
 import os
 import hashlib
 import time
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Import modular components
 try:

@@ -7,9 +7,11 @@ import os
 import shutil
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from dotenv import load_dotenv
-
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
