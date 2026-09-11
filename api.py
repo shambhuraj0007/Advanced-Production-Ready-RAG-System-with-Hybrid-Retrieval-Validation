@@ -14,7 +14,7 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
 from src.rag_system import SimpleRAG
@@ -36,13 +36,13 @@ app.add_middleware(
 
 # Ensure static and documents directory exist (using /tmp on Vercel serverless)
 IS_VERCEL = os.getenv("VERCEL") == "1"
-STATIC_DIR = Path(__file__).parent / "static"
-DOCUMENTS_DIR = Path("/tmp/documents") if IS_VERCEL else Path(__file__).parent / "documents"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+DOCUMENTS_DIR = Path("/tmp/documents") if IS_VERCEL else Path(__file__).resolve().parent / "documents"
 STATIC_DIR.mkdir(exist_ok=True)
 DOCUMENTS_DIR.mkdir(exist_ok=True)
 
 if IS_VERCEL:
-    repo_docs = Path(__file__).parent / "documents"
+    repo_docs = Path(__file__).resolve().parent / "documents"
     if repo_docs.exists():
         for doc in repo_docs.glob("*.*"):
             dest_doc = DOCUMENTS_DIR / doc.name
@@ -59,17 +59,27 @@ def get_rag() -> SimpleRAG:
     """Lazy initialize RAG system to prevent startup delay."""
     global rag_system
     if rag_system is None:
-        print(" Initializing SimpleRAG backend...")
-        rag_system = SimpleRAG()
-        # Auto-load existing documents if ChromaDB doesn't have them
-        existing_docs = list(DOCUMENTS_DIR.glob("*.*"))
-        valid_files = [str(f) for f in existing_docs if f.suffix.lower() in [".pdf", ".txt", ".md"]]
-        if valid_files and (not rag_system.vectorstore or len(rag_system.get_existing_documents()) == 0):
-            try:
-                print(f" Ingesting {len(valid_files)} documents on startup...")
-                rag_system.load_from_files(valid_files)
-            except Exception as e:
-                print(f" Document auto-ingestion warning: {e}")
+        try:
+            print(" Initializing SimpleRAG backend...")
+            kwargs = {}
+            if IS_VERCEL:
+                # Disable heavy local cross-encoder downloads on Vercel to avoid cold-start 10s timeouts
+                kwargs["use_reranking"] = False
+            rag_system = SimpleRAG(**kwargs)
+            # Auto-load existing documents if ChromaDB doesn't have them
+            existing_docs = list(DOCUMENTS_DIR.glob("*.*"))
+            valid_files = [str(f) for f in existing_docs if f.suffix.lower() in [".pdf", ".txt", ".md"]]
+            if valid_files and (not rag_system.vectorstore or len(rag_system.get_existing_documents()) == 0):
+                try:
+                    rag_system.load_from_files(valid_files)
+                except Exception as e:
+                    print(f" Document auto-ingestion notice: {e}")
+        except Exception as e:
+            print(f" SimpleRAG initialization error: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"RAG System Initialization Error: {str(e)}. Please check that GROQ_API_KEY and GEMINI_API_KEY are configured in your Vercel Project Settings > Environment Variables."
+            )
     return rag_system
 
 # Request / Response Schemas
@@ -80,13 +90,13 @@ class ChatRequest(BaseModel):
     use_reranking: Optional[bool] = None
     use_validation: Optional[bool] = None
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
     """Serve the modern single-page application."""
     index_file = STATIC_DIR / "index.html"
     if index_file.exists():
-        return FileResponse(str(index_file))
-    return {"message": "Advanced RAG API is running. index.html not found in static/."}
+        return HTMLResponse(content=index_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h3>Advanced RAG API is running. index.html not found in static/.</h3>")
 
 @app.get("/api/health")
 async def health_check():

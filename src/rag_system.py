@@ -96,7 +96,7 @@ class SimpleRAG:
                 return env_val.strip().lower() in ("true", "1", "yes")
             return default
 
-        self.provider = (provider or os.getenv("RAG_PROVIDER", "gemini")).lower()
+        self.provider = (provider or os.getenv("RAG_PROVIDER", "groq")).lower()
         default_persist = "/tmp/chroma_db" if os.getenv("VERCEL") == "1" else "./chroma_db"
         self.persist_directory = persist_directory or os.getenv("RAG_PERSIST_DIRECTORY", default_persist)
 
@@ -104,11 +104,13 @@ class SimpleRAG:
         env_embedding = os.getenv("RAG_EMBEDDING_MODEL")
         env_llm = os.getenv("RAG_LLM_MODEL")
         if self.provider == "gemini":
-            self.embedding_model = embedding_model or env_embedding or "models/text-embedding-004"
+            self.embedding_model = embedding_model or env_embedding or "models/gemini-embedding-001"
             self.llm_model = llm_model or env_llm or "gemini-1.5-flash"
         elif self.provider == "groq":
-            self.embedding_model = embedding_model or env_embedding or "all-MiniLM-L6-v2"
-            self.llm_model = llm_model or env_llm or "llama-3.3-70b-versatile"
+            has_gemini = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+            default_emb = "models/gemini-embedding-001" if has_gemini else "all-MiniLM-L6-v2"
+            self.embedding_model = embedding_model or env_embedding or default_emb
+            self.llm_model = llm_model or env_llm or "qwen/qwen3.8-27b"
         elif self.provider == "openai":
             self.embedding_model = embedding_model or env_embedding or "text-embedding-3-small"
             self.llm_model = llm_model or env_llm or "gpt-4o-mini"
@@ -180,18 +182,53 @@ class SimpleRAG:
             self.embeddings = OpenAIEmbeddings(**openai_kwargs)
         
         # Initialize LLM
-        if self.provider == "gemini":
-            self.llm = ChatGoogleGenerativeAI(
-                model=self.llm_model,
-                temperature=0,
-                google_api_key=api_key,
-            )
-        elif self.provider == "groq":
-            self.llm = ChatGroq(
+        # Initialize LLM with automatic multi-provider fallback
+        if self.provider == "groq":
+            primary_llm = ChatGroq(
                 model_name=self.llm_model,
                 temperature=0,
                 groq_api_key=api_key,
             )
+            # Automatic fallback to Gemini if Groq errors or hits rate limit
+            gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            if gemini_key:
+                try:
+                    fallback_llm = ChatGoogleGenerativeAI(
+                        model="gemini-1.5-flash",
+                        temperature=0,
+                        google_api_key=gemini_key,
+                    )
+                    self.llm = primary_llm.with_fallbacks([fallback_llm])
+                    print("✓ Configured Groq as primary LLM with Gemini-1.5-Flash as automatic fallback.")
+                except Exception as e:
+                    print(f"Warning: Could not configure Gemini fallback: {e}")
+                    self.llm = primary_llm
+            else:
+                self.llm = primary_llm
+
+        elif self.provider == "gemini":
+            primary_llm = ChatGoogleGenerativeAI(
+                model=self.llm_model,
+                temperature=0,
+                google_api_key=api_key,
+            )
+            # Automatic fallback to Groq if Gemini hits rate limits (HTTP 429)
+            groq_key = os.getenv("GROQ_API_KEY")
+            if groq_key:
+                try:
+                    fallback_llm = ChatGroq(
+                        model_name="qwen/qwen3.8-27b",
+                        temperature=0,
+                        groq_api_key=groq_key,
+                    )
+                    self.llm = primary_llm.with_fallbacks([fallback_llm])
+                    print("✓ Configured Gemini as primary LLM with Groq (qwen/qwen3.8-27b) as automatic fallback.")
+                except Exception as e:
+                    print(f"Warning: Could not configure Groq fallback: {e}")
+                    self.llm = primary_llm
+            else:
+                self.llm = primary_llm
+
         elif self.provider == "openai":
             openai_kwargs = {
                 "model": self.llm_model,
