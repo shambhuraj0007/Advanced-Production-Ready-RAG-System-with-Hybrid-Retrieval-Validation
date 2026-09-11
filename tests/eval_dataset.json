@@ -1,0 +1,26 @@
+[
+  {
+    "question": "What is the length of a cricket pitch and how many players are in each team?",
+    "ground_truth": "A cricket pitch is 22 yards long, and each team consists of eleven players."
+  },
+  {
+    "question": "What are the most common forms of dismissal in cricket?",
+    "ground_truth": "The most common forms of dismissal in cricket are bowled, leg before wicket (LBW), and caught."
+  },
+  {
+    "question": "Who maintains the laws of cricket?",
+    "ground_truth": "The laws of cricket are maintained by the International Cricket Council (ICC) and Marylebone Cricket Club (MCC)."
+  },
+  {
+    "question": "When did badminton become an Olympic sport, and how many events are there?",
+    "ground_truth": "Badminton has been a Summer Olympic sport since 1992 with five events: men's singles, women's singles, men's doubles, women's doubles, and mixed doubles."
+  },
+  {
+    "question": "Why does a shuttlecock decelerate more rapidly than balls used in other sports?",
+    "ground_truth": "The feathers of the shuttlecock create much higher aerodynamic drag, causing it to decelerate more rapidly."
+  },
+  {
+    "question": "What is RAG and why is it useful with LangChain?",
+    "ground_truth": "RAG (Retrieval-Augmented Generation) combines retrieval of relevant information with response generation, allowing LLMs to access external knowledge bases for accurate and up-to-date answers."
+  }
+]
