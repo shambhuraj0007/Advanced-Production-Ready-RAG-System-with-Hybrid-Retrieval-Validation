@@ -1,0 +1,7 @@
+[project]
+name = "advanced-rag-system"
+version = "1.0.0"
+description = "Advanced Production-Ready RAG System with Hybrid Retrieval & Validation"
+
+[tool.vercel]
+entrypoint = "api:app"

@@ -34,11 +34,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure static and documents directory exist
+# Ensure static and documents directory exist (using /tmp on Vercel serverless)
+IS_VERCEL = os.getenv("VERCEL") == "1"
 STATIC_DIR = Path(__file__).parent / "static"
-DOCUMENTS_DIR = Path(__file__).parent / "documents"
+DOCUMENTS_DIR = Path("/tmp/documents") if IS_VERCEL else Path(__file__).parent / "documents"
 STATIC_DIR.mkdir(exist_ok=True)
 DOCUMENTS_DIR.mkdir(exist_ok=True)
+
+if IS_VERCEL:
+    repo_docs = Path(__file__).parent / "documents"
+    if repo_docs.exists():
+        for doc in repo_docs.glob("*.*"):
+            dest_doc = DOCUMENTS_DIR / doc.name
+            if not dest_doc.exists():
+                shutil.copy2(doc, dest_doc)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
