@@ -162,7 +162,7 @@ class SimpleRAG:
         elif self.provider == "groq":
             gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
             openai_key = os.getenv("OPENAI_API_KEY")
-            if "text-embedding" in self.embedding_model.lower() and gemini_key:
+            if ("text-embedding" in self.embedding_model.lower() or "gemini" in self.embedding_model.lower()) and gemini_key:
                 self.embeddings = GoogleGenerativeAIEmbeddings(
                     model=self.embedding_model,
                     google_api_key=gemini_key
@@ -203,7 +203,7 @@ class SimpleRAG:
                         google_api_key=gemini_key,
                     )
                     self.llm = primary_llm.with_fallbacks([fallback_llm])
-                    print("✓ Configured Groq as primary LLM with Gemini-1.5-Flash as automatic fallback.")
+                    print("[OK] Configured Groq as primary LLM with Gemini-1.5-Flash as automatic fallback.")
                 except Exception as e:
                     print(f"Warning: Could not configure Gemini fallback: {e}")
                     self.llm = primary_llm
@@ -226,7 +226,7 @@ class SimpleRAG:
                         groq_api_key=groq_key,
                     )
                     self.llm = primary_llm.with_fallbacks([fallback_llm])
-                    print("✓ Configured Gemini as primary LLM with Groq (openai/gpt-oss-120b) as automatic fallback.")
+                    print("[OK] Configured Gemini as primary LLM with Groq (openai/gpt-oss-120b) as automatic fallback.")
                 except Exception as e:
                     print(f"Warning: Could not configure Groq fallback: {e}")
                     self.llm = primary_llm
