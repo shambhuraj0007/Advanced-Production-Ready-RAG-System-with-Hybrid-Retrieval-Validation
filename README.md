@@ -5,7 +5,7 @@
 [![VectorDB](https://img.shields.io/badge/VectorDB-ChromaDB-purple.svg)](https://www.trychroma.com/)
 [![Reranker](https://img.shields.io/badge/Reranker-Cross--Encoder-orange.svg)](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-6-v2)
 [![Evaluation](https://img.shields.io/badge/Evaluation-RAGAS-red.svg)](https://github.com/explodinggradients/ragas)
-[![UI](https://img.shields.io/badge/UI-Streamlit-ff4b4b.svg)](https://streamlit.io/)
+[![UI](https://img.shields.io/badge/UI-FastAPI%20%2B%20TailwindCSS-06B6D4.svg)](http://127.0.0.1:8000)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A high-performance, modular **Retrieval-Augmented Generation (RAG)** pipeline engineered with **LangChain (LCEL)**, combining **Hybrid Search (ChromaDB + BM25)**, **Cross-Encoder Re-ranking**, **Dynamic Query Routing**, **Hallucination Verification**, **Router-Aware External Tools**, and **Automated Quantitative Evaluation using RAGAS**.
@@ -64,7 +64,7 @@ A high-performance, modular **Retrieval-Augmented Generation (RAG)** pipeline en
                                               ▼
                                  ┌──────────────────────────┐
                                  │ 📊 Response + Metadata   │
-                                 │ (Streamlit UI / REST SDK)│
+                                 │ (Modern Web UI / REST SDK│
                                  └──────────────────────────┘
 ```
 
@@ -106,8 +106,8 @@ A high-performance, modular **Retrieval-Augmented Generation (RAG)** pipeline en
   - **Context Precision**: Evaluates the signal-to-noise ratio in retrieved context.
   - **Context Recall**: Verifies all required ground-truth facts are captured.
 
-### ⏱️ 8. Pipeline Latency Profiler
-- Built-in profiling subsystem (`src/performance_profiler.py` and `run_profiling.py`) tracking execution timings across each stage: routing, rewriting, retrieval, reranking, tool execution, and LLM generation.
+### ⏱️ 8. Real-time Latency & Query Metadata Tracking
+- Live telemetry displayed directly in the web interface showing query latency (seconds), query classification type (factual, analytical, multi-hop), and effective $k$.
 
 ### 🔀 9. Multi-Provider Flexibility
 - Clean, composable LangChain Expression Language (LCEL) supporting hot-swapping between:
@@ -130,15 +130,14 @@ A high-performance, modular **Retrieval-Augmented Generation (RAG)** pipeline en
 │   ├── citation_formatter.py  # Source attribution & metadata formatting
 │   ├── tool_manager.py        # Router-aware external tool dispatcher
 │   ├── tools.py               # Tool implementations (Tavily, DDG, Calculator)
-│   ├── memory_manager.py      # Conversational context & history management
-│   └── performance_profiler.py# Per-stage execution latency profiler
+│   └── memory_manager.py      # Conversational context & history management
 ├── documents/                 # Knowledge base documents (PDF, TXT, MD)
+├── static/
+│   └── index.html             # Modern HTML5 + TailwindCSS + JS Web UI
 ├── tests/
 │   └── eval_dataset.json      # Golden benchmark dataset for automated testing
-├── app.py                     # Feature-rich Streamlit web dashboard
+├── api.py                     # FastAPI asynchronous REST backend microservice
 ├── evaluate_ragas.py          # Automated RAGAS evaluation runner
-├── run_profiling.py           # Latency benchmarking & bottleneck profiling script
-├── example.py                 # Command-line usage demonstration
 ├── requirements.txt           # Production dependencies
 ├── .env.example              # Environment variables template
 └── README.md
@@ -190,12 +189,12 @@ TAVILY_API_KEY=your_tavily_api_key_here
 
 ## 💻 Usage
 
-### 1. Launch the Streamlit Web Application
+### 1. Launch the Modern Web Application (FastAPI + TailwindCSS)
 
 ```bash
-streamlit run app.py
+python api.py
 ```
-*Access the interface at `http://localhost:8501` to upload documents, customize retrieval weights ($\alpha$), inspect citations, and chat.*
+*Access the decoupled web UI at `http://127.0.0.1:8000` with interactive Swagger OpenAPI documentation at `http://127.0.0.1:8000/docs`.*
 
 ---
 
@@ -222,17 +221,7 @@ python evaluate_ragas.py
 
 ---
 
-### 3. Run Pipeline Latency Profiling
-
-Identify bottlenecks and measure execution timings across all stages:
-
-```bash
-python run_profiling.py
-```
-
----
-
-### 4. Programmatic Python SDK
+### 3. Programmatic Python SDK
 
 ```python
 from src.rag_system import SimpleRAG

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced RAG System | Production Intelligence</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Marked.js for Markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(71, 85, 105, 0.6);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(99, 102, 241, 0.8);
+    }
+    
+    /* Markdown Styles */
+    .prose-custom p { margin-bottom: 0.75rem; line-height: 1.625; }
+    .prose-custom p:last-child { margin-bottom: 0; }
+    .prose-custom ul { list-style-type: disc; margin-left: 1.25rem; margin-bottom: 0.75rem; }
+    .prose-custom ol { list-style-type: decimal; margin-left: 1.25rem; margin-bottom: 0.75rem; }
+    .prose-custom li { margin-bottom: 0.25rem; }
+    .prose-custom code { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; background: rgba(30, 41, 59, 0.8); padding: 0.15rem 0.35rem; border-radius: 0.25rem; color: #a5b4fc; }
+    .prose-custom pre { background: #0f172a; border: 1px solid #1e293b; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 0.75rem; }
+    .prose-custom pre code { background: transparent; padding: 0; color: #f8fafc; }
+    .prose-custom strong { font-weight: 600; color: #f1f5f9; }
+  </style>
+</head>
+
+<body class="bg-[#0b0f19] text-slate-200 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="h-16 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <i data-lucide="cpu" class="w-5 h-5 text-white"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-semibold text-white tracking-tight">NexusRAG</h1>
+          <span class="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Production</span>
+        </div>
+        <p class="text-xs text-slate-400 hidden sm:block">Hybrid Retrieval • Cross-Encoder Reranking • Groundedness Guard</p>
+      </div>
+    </div>
+
+    <!-- Health & Status Pills -->
+    <div class="flex items-center gap-3">
+      <div id="system-status-badge" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="system-status-text" class="text-slate-300 font-mono">Connecting...</span>
+      </div>
+      
+      <a href="/docs" target="_blank" class="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 transition">
+        <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+        <span>API Docs</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- LEFT SIDEBAR: Controls & Knowledge Base -->
+    <aside class="w-80 border-r border-slate-800/80 bg-slate-900/30 flex flex-col shrink-0 h-[calc(100vh-4rem)]">
+      
+      <div class="p-4 border-b border-slate-800/60 space-y-4">
+        <!-- Section: Document Ingestion -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Knowledge Base</span>
+            <span id="doc-count-badge" class="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">0 docs</span>
+          </div>
+
+          <!-- Drag and Drop Upload Card -->
+          <div id="drop-zone" class="border border-dashed border-slate-700/80 hover:border-indigo-500/80 bg-slate-900/40 hover:bg-indigo-950/20 rounded-xl p-3 text-center transition cursor-pointer group">
+            <input type="file" id="file-input" class="hidden" accept=".pdf,.txt,.md">
+            <div class="flex flex-col items-center gap-1.5 pointer-events-none">
+              <i data-lucide="upload-cloud" class="w-6 h-6 text-slate-400 group-hover:text-indigo-400 transition"></i>
+              <p class="text-xs font-medium text-slate-300">Upload PDF, TXT, or MD</p>
+              <p class="text-[10px] text-slate-500">Auto-chunked & indexed in ChromaDB</p>
+            </div>
+          </div>
+          <div id="upload-status" class="text-[11px] text-indigo-400 mt-1.5 hidden flex items-center gap-1.5">
+            <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
+            <span id="upload-status-text">Uploading & indexing...</span>
+          </div>
+        </div>
+
+        <!-- Document List Container -->
+        <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1" id="document-list">
+          <p class="text-xs text-slate-500 italic">Scanning documents directory...</p>
+        </div>
+      </div>
+
+      <!-- Section: RAG Hyperparameters -->
+      <div class="p-4 space-y-5 overflow-y-auto flex-1">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Retrieval Engine</span>
+
+        <!-- Hybrid Search Toggle -->
+        <div class="flex items-center justify-between">
+          <div>
+            <label class="text-xs font-medium text-slate-200 block">Hybrid Search</label>
+            <p class="text-[10px] text-slate-500">Dense Vector + BM25 Sparse</p>
+          </div>
+          <input type="checkbox" id="toggle-hybrid" checked class="w-4 h-4 accent-indigo-600 rounded bg-slate-800 border-slate-700">
+        </div>
+
+        <!-- Alpha Weight Slider -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <span class="text-slate-300">Hybrid Alpha ($\alpha$)</span>
+            <span id="alpha-val" class="font-mono text-indigo-400 font-medium">0.50</span>
+          </div>
+          <input type="range" id="slider-alpha" min="0" max="1" step="0.05" value="0.5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+          <div class="flex justify-between text-[10px] text-slate-500">
+            <span>0.0 (BM25 only)</span>
+            <span>1.0 (Vector only)</span>
+          </div>
+        </div>
+
+        <!-- Cross-Encoder Reranker Toggle -->
+        <div class="flex items-center justify-between">
+          <div>
+            <label class="text-xs font-medium text-slate-200 block">Cross-Encoder Rerank</label>
+            <p class="text-[10px] text-slate-500">ms-marco-MiniLM-L-6-v2</p>
+          </div>
+          <input type="checkbox" id="toggle-rerank" checked class="w-4 h-4 accent-indigo-600 rounded bg-slate-800 border-slate-700">
+        </div>
+
+        <!-- Answer Validation Toggle -->
+        <div class="flex items-center justify-between">
+          <div>
+            <label class="text-xs font-medium text-slate-200 block">Hallucination Guard</label>
+            <p class="text-[10px] text-slate-500">Cross-checks claims with sources</p>
+          </div>
+          <input type="checkbox" id="toggle-validation" checked class="w-4 h-4 accent-indigo-600 rounded bg-slate-800 border-slate-700">
+        </div>
+      </div>
+
+      <!-- Sidebar Footer: Clear History -->
+      <div class="p-3 border-t border-slate-800/80">
+        <button id="btn-clear-chat" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-800/50 hover:bg-red-950/40 hover:text-red-300 border border-slate-700/50 hover:border-red-800/50 transition">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <span>Clear Conversation</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT: CHAT INTERFACE -->
+    <main class="flex-1 flex flex-col h-[calc(100vh-4rem)] bg-gradient-to-b from-[#0b0f19] via-[#0d1322] to-[#0b0f19] overflow-hidden">
+      
+      <!-- Messages Feed Container -->
+      <div id="messages-container" class="flex-1 overflow-y-auto px-4 py-6 md:px-12 space-y-6">
+        
+        <!-- Welcome Banner when empty -->
+        <div id="welcome-card" class="max-w-2xl mx-auto my-12 text-center space-y-4">
+          <div class="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-inner">
+            <i data-lucide="sparkles" class="w-8 h-8"></i>
+          </div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Enterprise Document Intelligence</h2>
+          <p class="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+            Ask complex queries across your documents. Responses are backed by hybrid vector search, cross-encoder re-ranking, and hallucination verification.
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-4 text-left max-w-lg mx-auto">
+            <button class="prompt-chip p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/40 text-xs text-slate-300 transition group">
+              <span class="text-indigo-400 block font-medium mb-0.5 group-hover:text-indigo-300">Cricket Rules →</span>
+              What is the length of a cricket pitch and player count?
+            </button>
+            <button class="prompt-chip p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/40 text-xs text-slate-300 transition group">
+              <span class="text-indigo-400 block font-medium mb-0.5 group-hover:text-indigo-300">Badminton History →</span>
+              When did badminton become an Olympic sport?
+            </button>
+            <button class="prompt-chip p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/40 text-xs text-slate-300 transition group">
+              <span class="text-indigo-400 block font-medium mb-0.5 group-hover:text-indigo-300">RAG Definition →</span>
+              What is RAG and why is it useful with LangChain?
+            </button>
+            <button class="prompt-chip p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/40 text-xs text-slate-300 transition group">
+              <span class="text-indigo-400 block font-medium mb-0.5 group-hover:text-indigo-300">Shuttlecock Physics →</span>
+              Why does a shuttlecock decelerate rapidly?
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Chat Input Area -->
+      <div class="p-4 md:px-12 border-t border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
+        <div class="max-w-3xl mx-auto">
+          <form id="chat-form" class="relative flex items-end bg-slate-900/80 border border-slate-700/70 focus-within:border-indigo-500 rounded-2xl shadow-xl transition-all">
+            <textarea
+              id="user-input"
+              rows="1"
+              placeholder="Ask a question about your documents..."
+              class="w-full bg-transparent text-sm text-slate-200 placeholder-slate-500 px-4 py-3.5 focus:outline-none resize-none max-h-32 leading-relaxed"
+            ></textarea>
+            <div class="pb-2.5 pr-2.5">
+              <button
+                type="submit"
+                id="btn-send"
+                class="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition shadow-md shadow-indigo-600/30 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <i data-lucide="send" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </form>
+          <div class="flex items-center justify-between px-2 pt-2 text-[11px] text-slate-500">
+            <span>Press <kbd class="px-1 py-0.5 bg-slate-800 rounded font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1 py-0.5 bg-slate-800 rounded font-mono text-[10px]">Shift + Enter</kbd> for new line</span>
+            <span id="latency-indicator" class="font-mono text-slate-400 hidden"></span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // DOM Elements
+    const messagesContainer = document.getElementById('messages-container');
+    const welcomeCard = document.getElementById('welcome-card');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const btnSend = document.getElementById('btn-send');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const uploadStatus = document.getElementById('upload-status');
+    const uploadStatusText = document.getElementById('upload-status-text');
+    const documentList = document.getElementById('document-list');
+    const docCountBadge = document.getElementById('doc-count-badge');
+    const sliderAlpha = document.getElementById('slider-alpha');
+    const alphaVal = document.getElementById('alpha-val');
+    const toggleHybrid = document.getElementById('toggle-hybrid');
+    const toggleRerank = document.getElementById('toggle-rerank');
+    const toggleValidation = document.getElementById('toggle-validation');
+    const btnClearChat = document.getElementById('btn-clear-chat');
+    const systemStatusText = document.getElementById('system-status-text');
+    const latencyIndicator = document.getElementById('latency-indicator');
+
+    // Auto-resize input textarea
+    userInput.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+    });
+
+    // Enter to submit
+    userInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        chatForm.dispatchEvent(new Event('submit'));
+      }
+    });
+
+    // Alpha slider update
+    sliderAlpha.addEventListener('input', (e) => {
+      alphaVal.textContent = parseFloat(e.target.value).toFixed(2);
+    });
+
+    // Prompt Chips
+    document.querySelectorAll('.prompt-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const text = chip.childNodes[2].textContent.trim();
+        userInput.value = text;
+        chatForm.dispatchEvent(new Event('submit'));
+      });
+    });
+
+    // Fetch System Health
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          systemStatusText.textContent = `${data.provider.toUpperCase()} (${data.llm_model})`;
+        } else {
+          systemStatusText.textContent = 'Degraded';
+        }
+      } catch (err) {
+        systemStatusText.textContent = 'Offline';
+      }
+    }
+
+    // Fetch Documents
+    async function fetchDocuments() {
+      try {
+        const res = await fetch('/api/documents');
+        if (res.ok) {
+          const data = await res.json();
+          const docs = data.documents || [];
+          docCountBadge.textContent = `${docs.length} docs`;
+          
+          if (docs.length === 0) {
+            documentList.innerHTML = '<p class="text-xs text-slate-500 italic">No documents found.</p>';
+          } else {
+            documentList.innerHTML = docs.map(d => `
+              <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/80 text-xs">
+                <div class="flex items-center gap-2 truncate pr-2">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                  <span class="text-slate-300 truncate font-mono text-[11px]">${d.filename}</span>
+                </div>
+                <span class="text-[10px] text-slate-500 font-mono shrink-0">${(d.size_bytes / 1024).toFixed(1)} KB</span>
+              </div>
+            `).join('');
+            lucide.createIcons();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch documents:', err);
+      }
+    }
+
+    // Handle File Upload
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async (e) => {
+      if (!e.target.files.length) return;
+      const file = e.target.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      uploadStatus.classList.remove('hidden');
+      uploadStatusText.textContent = `Indexing ${file.name}...`;
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          uploadStatusText.textContent = `Successfully indexed!`;
+          setTimeout(() => uploadStatus.classList.add('hidden'), 2500);
+          fetchDocuments();
+        } else {
+          const err = await res.json();
+          alert(`Upload failed: ${err.detail || 'Error'}`);
+          uploadStatus.classList.add('hidden');
+        }
+      } catch (err) {
+        alert('Upload network error: ' + err.message);
+        uploadStatus.classList.add('hidden');
+      }
+      fileInput.value = '';
+    });
+
+    // Clear Conversation
+    btnClearChat.addEventListener('click', async () => {
+      if (!confirm('Clear all conversation history?')) return;
+      try {
+        await fetch('/api/clear', { method: 'POST' });
+        messagesContainer.innerHTML = '';
+        messagesContainer.appendChild(welcomeCard);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    // Append Message to UI
+    function appendUserMessage(text) {
+      if (welcomeCard) welcomeCard.remove();
+
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'flex justify-end';
+      msgDiv.innerHTML = `
+        <div class="max-w-2xl bg-indigo-600 text-white px-4 py-3 rounded-2xl rounded-tr-sm shadow-md text-sm leading-relaxed">
+          ${escapeHtml(text)}
+        </div>
+      `;
+      messagesContainer.appendChild(msgDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function createAssistantMessagePlaceholder() {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'flex gap-3 max-w-3xl';
+      msgDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shrink-0 shadow-md">
+          <i data-lucide="bot" class="w-4 h-4 text-white"></i>
+        </div>
+        <div class="flex-1 space-y-3 bg-slate-900/70 border border-slate-800 p-4 rounded-2xl rounded-tl-sm shadow-sm text-sm">
+          <div class="content prose-custom text-slate-200">
+            <div class="flex items-center gap-2 text-slate-400">
+              <i data-lucide="loader" class="w-4 h-4 animate-spin text-indigo-400"></i>
+              <span class="text-xs">Searching documents & synthesizing answer...</span>
+            </div>
+          </div>
+          <div class="metadata-tray flex flex-wrap gap-2 pt-2 border-t border-slate-800/80 hidden"></div>
+          <div class="citations-tray hidden"></div>
+        </div>
+      `;
+      messagesContainer.appendChild(msgDiv);
+      lucide.createIcons();
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      return msgDiv;
+    }
+
+    function updateAssistantMessage(msgDiv, data) {
+      const contentEl = msgDiv.querySelector('.content');
+      const metaTray = msgDiv.querySelector('.metadata-tray');
+      const citationsTray = msgDiv.querySelector('.citations-tray');
+
+      // 1. Render Markdown Answer
+      contentEl.innerHTML = marked.parse(data.answer || "No response generated.");
+
+      // 2. Metadata Badges (Validation & Routing)
+      let metaHtml = '';
+      if (data.routing && data.routing.query_type) {
+        metaHtml += `
+          <span class="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-slate-800/90 text-indigo-300 border border-slate-700/80 shadow-sm flex items-center gap-1.5">
+            <i data-lucide="compass" class="w-3 h-3 text-indigo-400"></i>
+            Query: ${data.routing.query_type} (k=${data.routing.retrieval_k || 3})
+          </span>
+        `;
+      }
+      
+      if (data.validation && data.validation.is_valid !== undefined) {
+        const conf = Math.round((data.validation.confidence || 0.5) * 100);
+        const isGood = data.validation.is_valid && conf >= 70;
+        metaHtml += `
+          <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 shadow-sm ${
+            isGood 
+              ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/60' 
+              : 'bg-amber-950/70 text-amber-300 border border-amber-700/60'
+          }">
+            <i data-lucide="${isGood ? 'shield-check' : 'shield-alert'}" class="w-3.5 h-3.5 ${isGood ? 'text-emerald-400' : 'text-amber-400'}"></i>
+            Answer Confidence: ${conf}% ${isGood ? '(Grounded)' : '(Review Needed)'}
+          </span>
+        `;
+      }
+
+      if (metaHtml) {
+        metaTray.innerHTML = metaHtml;
+        metaTray.classList.remove('hidden');
+      }
+
+      // 3. Citations Drawer with Source Confidence Scores
+      if (data.citations && data.citations.length > 0) {
+        const citationCards = data.citations.map((c, i) => {
+          const rawConf = c.confidence_score !== undefined ? c.confidence_score : 0.85;
+          const confPercent = Math.round(rawConf <= 1.0 ? rawConf * 100 : Math.min(100, rawConf));
+          const isHighMatch = confPercent >= 80;
+          const textSnippet = c.content || c.snippet || '';
+
+          return `
+            <div class="p-3 rounded-xl bg-slate-950/90 border border-slate-800 hover:border-slate-700 text-xs space-y-2 transition shadow-inner">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 truncate font-mono text-[11px] text-indigo-400 font-medium">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                  <span class="truncate">[${i+1}] ${c.file_name || c.source || 'Document'}</span>
+                  ${c.page && c.page !== 'N/A' ? `<span class="text-slate-500 font-normal">p. ${c.page}</span>` : ''}
+                </div>
+                <!-- Source Confidence Score Badge -->
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold shrink-0 flex items-center gap-1 ${
+                  isHighMatch
+                    ? 'bg-indigo-950/90 text-indigo-300 border border-indigo-700/70'
+                    : 'bg-slate-800 text-slate-300 border border-slate-700'
+                }">
+                  <span>Match: ${confPercent}%</span>
+                </span>
+              </div>
+              <p class="text-slate-300 text-[11px] line-clamp-3 leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-slate-800/60 font-sans">
+                "${escapeHtml(textSnippet)}"
+              </p>
+            </div>
+          `;
+        }).join('');
+
+        citationsTray.innerHTML = `
+          <details class="group mt-2">
+            <summary class="cursor-pointer text-[11px] font-semibold text-slate-400 hover:text-slate-200 list-none flex items-center justify-between p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/50 transition">
+              <div class="flex items-center gap-1.5">
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5 group-open:rotate-90 transition-transform text-indigo-400"></i>
+                <span>Source Citations & Relevance Scores (${data.citations.length})</span>
+              </div>
+              <span class="text-[10px] font-mono text-slate-400">Click to expand</span>
+            </summary>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-2.5">
+              ${citationCards}
+            </div>
+          </details>
+        `;
+        citationsTray.classList.remove('hidden');
+      }
+
+
+      lucide.createIcons();
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Handle Query Submission
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = userInput.value.trim();
+      if (!question) return;
+
+      appendUserMessage(question);
+      userInput.value = '';
+      userInput.style.height = 'auto';
+      btnSend.disabled = true;
+
+      const placeholder = createAssistantMessagePlaceholder();
+      const startTime = performance.now();
+
+      try {
+        const payload = {
+          question: question,
+          use_hybrid: toggleHybrid.checked,
+          hybrid_alpha: parseFloat(sliderAlpha.value),
+          use_reranking: toggleRerank.checked,
+          use_validation: toggleValidation.checked
+        };
+
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+        latencyIndicator.textContent = `Latency: ${elapsed}s`;
+        latencyIndicator.classList.remove('hidden');
+
+        if (res.ok) {
+          const data = await res.json();
+          updateAssistantMessage(placeholder, data);
+        } else {
+          const err = await res.json();
+          placeholder.querySelector('.content').innerHTML = `
+            <p class="text-rose-400 text-xs">Error: ${err.detail || 'Inference error'}</p>
+          `;
+        }
+      } catch (err) {
+        placeholder.querySelector('.content').innerHTML = `
+          <p class="text-rose-400 text-xs">Connection failed: ${err.message}</p>
+        `;
+      } finally {
+        btnSend.disabled = false;
+        userInput.focus();
+      }
+    });
+
+    function escapeHtml(string) {
+      return String(string).replace(/[&<>"']/g, function (s) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[s];
+      });
+    }
+
+    // On Load
+    checkHealth();
+    fetchDocuments();
+  </script>
+</body>
+</html>

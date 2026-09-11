@@ -84,6 +84,8 @@ class CitationFormatter:
                 "file_path": file_path,
                 "page": page,
                 "source": metadata.get("source", file_path),
+                "confidence_score": metadata.get("confidence_score") or metadata.get("score") or 0.85,
+                "relevance_score": metadata.get("relevance_score") or 0.85,
             }
             
             # Add any additional metadata

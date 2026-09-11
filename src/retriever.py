@@ -117,8 +117,18 @@ class HybridRetriever:
         scored_docs = list(zip(documents, scores))
         scored_docs.sort(key=lambda x: x[1], reverse=True)
         
-        # Return top k documents
-        reranked_docs = [doc for doc, score in scored_docs[:self.rerank_top_k]]
+        # Return top k documents with confidence score attached
+        import math
+        reranked_docs = []
+        for doc, score in scored_docs[:self.rerank_top_k]:
+            # Convert cross-encoder logit to confidence (0.0 to 1.0) using sigmoid
+            try:
+                conf = 1.0 / (1.0 + math.exp(-float(score)))
+            except Exception:
+                conf = max(0.0, min(1.0, float(score)))
+            doc.metadata["confidence_score"] = round(conf, 3)
+            doc.metadata["relevance_score"] = round(float(score), 3)
+            reranked_docs.append(doc)
         
         return reranked_docs
     
@@ -216,7 +226,13 @@ class HybridRetriever:
         
         # Sort by combined score and return top k
         sorted_keys = sorted(combined_scores.keys(), key=lambda k: combined_scores[k], reverse=True)
-        hybrid_docs = [doc_map[key] for key in sorted_keys[:k]]
+        hybrid_docs = []
+        for key in sorted_keys[:k]:
+            doc = doc_map[key]
+            conf = float(combined_scores[key])
+            doc.metadata["confidence_score"] = round(max(0.0, min(1.0, conf)), 3)
+            doc.metadata["relevance_score"] = round(conf, 3)
+            hybrid_docs.append(doc)
         
         return hybrid_docs
     
